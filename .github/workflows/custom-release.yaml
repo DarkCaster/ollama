@@ -2,9 +2,8 @@ name: Go Build, Test and Publish Artifacts
 
 on:
   push:
-    branches: [ main ]
     tags:
-      - '*'
+      - 'v*'
 
 jobs:
   # Linux x86 assets built using the container based build
@@ -37,7 +36,7 @@ jobs:
 
       - name: Set Version
         shell: bash
-        run: echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_ENV && cat $GITHUB_ENV
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV && cat $GITHUB_ENV
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -61,4 +60,4 @@ jobs:
           omitBodyDuringUpdate: true
           omitNameDuringUpdate: true
           omitPrereleaseDuringUpdate: true
-          artifacts: "ollama-$VERSION.xz"
+          artifacts: "ollama-*.xz"
