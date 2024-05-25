@@ -23,7 +23,6 @@ amdGPUs() {
     GPU_LIST=(
         "gfx802"
         "gfx803"
-        "gfx804"
         "gfx805"
         "gfx900"
         "gfx906:xnack-"
