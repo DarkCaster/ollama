@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
     tags:
-      - 'v*'
+      - '*'
 
 jobs:
   # Linux x86 assets built using the container based build
@@ -37,7 +37,7 @@ jobs:
 
       - name: Set Version
         shell: bash
-        run: echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+        run: echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_ENV && cat $GITHUB_ENV
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -45,7 +45,20 @@ jobs:
           go-version: '>=1.22.3'
 
       - name: Go generate
-        run: env CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go generate -v -x -buildvcs=true -ldflags "-X=github.com/ollama/ollama/version.Version=$VERSION -X=github.com/ollama/ollama/server.mode=release -s -w" ./...
+        run: env CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go generate -v -x -buildvcs=true -ldflags "-X=github.com/ollama/ollama/version.Version=$VERSION -X=github.com/ollama/ollama/server.mode=release -s -w" ./...
 
-      - name: Build linux amd64 binaries
-        run: env CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -x -buildvcs=true -ldflags "-X=github.com/ollama/ollama/version.Version=$VERSION -X=github.com/ollama/ollama/server.mode=release -s -w" github.com/ollama/ollama
+      - name: Build linux amd64 binary
+        run: env CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -v -x -buildvcs=true -ldflags "-X=github.com/ollama/ollama/version.Version=$VERSION -X=github.com/ollama/ollama/server.mode=release -s -w" github.com/ollama/ollama
+
+      - name: Compress binary
+        run: mv ollama ollama-$VERSION && xz -9e ollama-$VERSION
+
+      - name: Upload binary to release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: "Builds"
+          allowUpdates: true
+          omitBodyDuringUpdate: true
+          omitNameDuringUpdate: true
+          omitPrereleaseDuringUpdate: true
+          artifacts: "ollama-$VERSION.xz"
