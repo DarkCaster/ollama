@@ -1,0 +1,47 @@
+name: release
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+
+jobs:
+  # Linux x86 assets built using the container based build
+  build-linux-amd64:
+    environment: release
+    runs-on: ubuntu-22.04
+    env:
+      OLLAMA_SKIP_MANIFEST_CREATE: '1'
+      BUILD_ARCH: amd64
+    permissions:
+      contents: write
+    steps:
+      - name: Add AMD ROCM repo keys
+        run: sudo mkdir --parents --mode=0755 /etc/apt/keyrings && wget https://repo.radeon.com/rocm/rocm.gpg.key -O - | gpg --dearmor | sudo tee /etc/apt/keyrings/rocm.gpg > /dev/null
+
+      - name: Add AMD ROCM repo
+        run: ( echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/amdgpu/5.7.3/ubuntu focal main" | sudo tee /etc/apt/sources.list.d/amdgpu.list ) && ( echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/5.7.3 focal main" | sudo tee --append /etc/apt/sources.list.d/rocm.list ) && ( echo -e 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 600' | sudo tee /etc/apt/preferences.d/rocm-pin-600 ) && ( echo "/opt/rocm/lib" | sudo tee --append /etc/ld.so.conf.d/rocm.conf ) && sudo ldconfig
+
+      - name: Install packages
+        run: sudo apt-get remove --purge snapd -y && sudo apt-get update && sudo apt-get upgrade -y && sudo apt-get install -y --no-install-recommends lsb-release git build-essential rocm-gdb rocminfo rocm-utils rocm-llvm rocm-smi-lib hsa-amd-aqlprofile rocm-device-libs rocm-cmake rocprofiler rocm-debug-agent rocprofiler-dev hsa-rocr-dev hipify-clang hipcc rocm-core hip-runtime-amd rocm-opencl hip-dev hip-doc roctracer rocm-opencl-dev roctracer-dev hip-samples rocprofiler-plugins hsakmt-roct-dev rocm-dbgapi hsa-rocr amd-smi-lib rocm-clang-ocl rocm-ocl-icd amdgpu-core rocm-dev hipblas-dev hipblas rocsolver-dev rocsolver rocsparse rocblas rocsparse-dev rocblas-dev
+
+      - name: Check out repository code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set Version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.22.3'
+
+      - name: Go generate
+        run: env CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go generate -v -x -buildvcs=true -ldflags "-X=github.com/ollama/ollama/version.Version=$VERSION -X=github.com/ollama/ollama/server.mode=release -s -w" ./...
+
+      - name: Build linux amd64 binaries
+        run: env CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -x -buildvcs=true -ldflags "-X=github.com/ollama/ollama/version.Version=$VERSION -X=github.com/ollama/ollama/server.mode=release -s -w" github.com/ollama/ollama
