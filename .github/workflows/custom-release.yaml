@@ -41,7 +41,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '>=1.22.3'
+          go-version: '>=1.22.4'
 
       - name: Go generate
         run: env CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go generate -v -x -buildvcs=true -ldflags "-X=github.com/ollama/ollama/version.Version=$VERSION -X=github.com/ollama/ollama/server.mode=release -s -w" ./...
